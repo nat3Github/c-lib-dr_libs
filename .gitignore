@@ -11,3 +11,5 @@
 /tests/testvectors/vorbis/*
 /tests/testvectors/opus/*
 !.gitkeep
+.zig-cache/
+zig-out/
