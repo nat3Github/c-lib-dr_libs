@@ -4485,13 +4485,13 @@ static drmp3_bool32 drmp3_seek_to_pcm_frame__seek_table(drmp3* pMP3, drmp3_uint6
     DRMP3_ASSERT(pMP3->seekPointCount > 0);
 
     /*
-    If there is no prior seekpoint it means the target PCM frame comes before the first seek point. Just assume a seekpoint at the start of the file in this case.
+    If there is no prior seekpoint it means the target PCM frame comes before the first seek point. Just assume a seekpoint at the start of the stream in this case.
     Seek points count the delay frames too.
     */
     if (drmp3_find_closest_seek_point(pMP3, frameIndex + pMP3->delayInPCMFrames, &priorSeekPointIndex)) {
         seekPoint = pMP3->pSeekPoints[priorSeekPointIndex];
     } else {
-        seekPoint.seekPosInBytes     = 0;
+        seekPoint.seekPosInBytes     = pMP3->streamStartOffset;
         seekPoint.pcmFrameIndex      = 0;
         seekPoint.mp3FramesToDiscard = 0;
         seekPoint.pcmFramesToDiscard = 0;
@@ -4705,7 +4705,7 @@ DRMP3_API drmp3_bool32 drmp3_calculate_seek_points(drmp3* pMP3, drmp3_uint32* pS
     /* If there's less than DRMP3_SEEK_LEADING_MP3_FRAMES+1 frames we just report 1 seek point which will be the very start of the stream. */
     if (totalMP3FrameCount < DRMP3_SEEK_LEADING_MP3_FRAMES+1) {
         seekPointCount = 1;
-        pSeekPoints[0].seekPosInBytes     = 0;
+        pSeekPoints[0].seekPosInBytes     = pMP3->streamStartOffset;
         pSeekPoints[0].pcmFrameIndex      = 0;
         pSeekPoints[0].mp3FramesToDiscard = 0;
         pSeekPoints[0].pcmFramesToDiscard = 0;
