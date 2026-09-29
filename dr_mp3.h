@@ -2481,8 +2481,12 @@ DRMP3_API void drmp3dec_f32_to_s16(const float *in, drmp3_int16 *out, size_t num
 /* End SIZE_MAX */
 
 /* Options. */
+/*
+The number of MP3 frames a seek point decodes in front of the target frame. They need to hold the bit reservoir of the two frames
+before it: up to 511 bytes, 9 frames at 32 kbps. Seeks where they don't decode from the start of the stream instead.
+*/
 #ifndef DRMP3_SEEK_LEADING_MP3_FRAMES
-#define DRMP3_SEEK_LEADING_MP3_FRAMES   2
+#define DRMP3_SEEK_LEADING_MP3_FRAMES   16
 #endif
 
 #define DRMP3_MIN_DATA_CHUNK_SIZE   16384
