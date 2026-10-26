@@ -3330,8 +3330,11 @@ static drmp3_bool32 drmp3_init_internal(drmp3* pMP3, drmp3_read_proc onRead, drm
                     The stream cursor stays: it is where the next read continues, past the data already in the cache. Resetting it made
                     the read clamp against the end of the stream (ID3v1 / APE tags) let the tags in, and minimp3 then rejects the frames
                     in front of them.
+                    The end of this frame is where the cache ends minus what is left in it: bytes minimp3 skipped in front of the frame
+                    (junk, or a frame it rejected for lack of a following header) are consumed too, and the frame size alone would put
+                    the start offset into them. A seek to the start would then decode the Xing/Info frame as audio.
                     */
-                    pMP3->streamStartOffset += (drmp3_uint32)(firstFrameInfo.frame_bytes);
+                    pMP3->streamStartOffset = pMP3->streamCursor - pMP3->dataSize;
 
                     /*
                     The internal decoder needs to be reset to clear out any state. If we don't reset this state, it's possible for
