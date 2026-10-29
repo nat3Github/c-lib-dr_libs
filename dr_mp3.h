@@ -4810,9 +4810,45 @@ DRMP3_API drmp3_bool32 drmp3_calculate_seek_points(drmp3* pMP3, drmp3_uint32* pS
 
             DRMP3_ASSERT(mp3FrameInfoCount > 0);
             pSeekPoints[iSeekPoint].seekPosInBytes     = mp3FrameInfo[0].bytePos;
-            pSeekPoints[iSeekPoint].pcmFrameIndex      = nextTargetPCMFrame;
+            pSeekPoints[iSeekPoint].pcmFrameIndex      = mp3FrameInfo[mp3FrameInfoCount-1].bytePos;    /* Set below, until then the byte position of the frame holding the target. */
             pSeekPoints[iSeekPoint].mp3FramesToDiscard = (drmp3_uint16)(mp3FrameInfo[mp3FrameInfoCount-1].mp3FrameIndex - mp3FrameInfo[0].mp3FrameIndex);
             pSeekPoints[iSeekPoint].pcmFramesToDiscard = (drmp3_uint16)(nextTargetPCMFrame - mp3FrameInfo[mp3FrameInfoCount-1].pcmFrameIndex);
+        }
+
+        /*
+        Counting MP3 frames from a seek point lands on the frame holding the target only if the jump finds the same frames as the linear read.
+        Junk between the frames can make it resync differently (a frame skipped in one read is found in the other). Try each seek point: one
+        that lands elsewhere is replaced by the one before it (or the start of the stream), the seek then decodes forward from there.
+        */
+        for (iSeekPoint = 0; iSeekPoint < seekPointCount; ++iSeekPoint) {
+            drmp3_uint64 targetBytePos = pSeekPoints[iSeekPoint].pcmFrameIndex;
+            drmp3_uint32 iMP3Frame = 0;
+
+            pSeekPoints[iSeekPoint].pcmFrameIndex = pcmFramesBetweenSeekPoints * (iSeekPoint+1);
+
+            if (!drmp3__on_seek_64(pMP3, pSeekPoints[iSeekPoint].seekPosInBytes, DRMP3_SEEK_SET)) {
+                return DRMP3_FALSE;
+            }
+            drmp3_reset(pMP3);
+
+            while (iMP3Frame < pSeekPoints[iSeekPoint].mp3FramesToDiscard) {
+                if (drmp3_decode_next_frame_ex(pMP3, NULL, NULL, NULL) == 0) {
+                    break;
+                }
+                iMP3Frame += 1 + pMP3->mp3FramesSkipped;
+            }
+
+            /* A count that does not match makes the seek decode from the start of the stream itself. */
+            if (iMP3Frame == pSeekPoints[iSeekPoint].mp3FramesToDiscard && pMP3->streamCursor - pMP3->dataSize != targetBytePos) {
+                if (iSeekPoint > 0) {
+                    pSeekPoints[iSeekPoint] = pSeekPoints[iSeekPoint-1];
+                } else {
+                    pSeekPoints[iSeekPoint].seekPosInBytes     = pMP3->streamStartOffset;
+                    pSeekPoints[iSeekPoint].pcmFrameIndex      = 0;
+                    pSeekPoints[iSeekPoint].mp3FramesToDiscard = 0;
+                    pSeekPoints[iSeekPoint].pcmFramesToDiscard = 0;
+                }
+            }
         }
 
         /* Finally, we need to seek back to where we were. */
